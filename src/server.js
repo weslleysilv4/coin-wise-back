@@ -1,38 +1,40 @@
-const createError = require('http-errors')
+require('dotenv').config()
 const express = require('express')
-const path = require('path')
-const dotenv = require('dotenv')
-const cookieParser = require('cookie-parser')
-
-const indexRouter = require('./routes/index')
+const cors = require('cors')
+const helmet = require('helmet')
+const compression = require('compression')
+const rateLimit = require('express-rate-limit')
+const morgan = require('morgan')
+const logger = require('./logger') // Arquivo de logs com Winston
+const routes = require('./routes') // Arquivo com as rotas da aplicação
 
 const app = express()
-dotenv.config()
 
+// 🛡️ Segurança
+app.use(helmet())
+app.use(cors())
 app.use(express.json())
-app.use(express.urlencoded({ extended: false }))
-app.use(cookieParser())
+app.use(compression())
+app.use(morgan('dev'))
 
-app.use('/api', indexRouter)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // Limite de 100 requisições por IP
+  message: 'Muitas requisições deste IP, tente novamente mais tarde.',
+})
+app.use(limiter)
 
-// catch 404 and forward to error handler
-app.use(function (req, res, next) {
-  next(createError(404))
+app.use('/api', routes)
+
+app.use((err, req, res, next) => {
+  logger.error(`Error: ${err.message} - Path: ${req.path}`)
+  res.status(500).json({ message: 'Internal server error' })
 })
 
-// error handler
-app.use(function (err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message
-  res.locals.error = req.app.get('env') === 'development' ? err : {}
-
-  // render the error page
-  res.status(err.status || 500)
-  res.render('error')
-})
-
-app.listen(process.env.PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${process.env.PORT}`)
+// 🚀 Iniciando o servidor
+const PORT = process.env.PORT || 5000
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`)
 })
 
 module.exports = app
