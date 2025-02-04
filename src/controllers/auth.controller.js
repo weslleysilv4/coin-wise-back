@@ -23,6 +23,7 @@ const authController = {
       }
 
       if (!(await bcrypt.compare(password, user.password))) {
+        logger.warn(`Failed login attempt for user: ${user.email}`)
         return res.status(400).json({ message: 'Invalid Credentials' })
       }
 
@@ -30,14 +31,15 @@ const authController = {
         expiresIn: '1d',
       })
 
-      res.status(200).json({ token: token })
+      logger.info(`User logged in: ${user.name}`)
+      res.status(200).json({ message: 'Login successful', token: token })
     } catch (error) {
       // Handle Zod validation errors
       if (error?.name === 'ZodError') {
         const message = error.issues[0]?.message || 'Validation error'
         return res.status(400).json({ message })
       }
-
+      logger.error(`Login error: ${error.message}`)
       res.status(400).json({ message: error || 'An error occurred' })
     }
   },

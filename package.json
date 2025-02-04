@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "nodemon ./src/server.js",
-    "seed": "node ./src/seed.js"
+    "seed": "node ./src/seed.js",
+    "seedCoins": "node ./src/seedCoins.js"
   },
   "dependencies": {
     "@prisma/client": "^6.3.0",
