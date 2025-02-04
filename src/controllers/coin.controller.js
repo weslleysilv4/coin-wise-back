@@ -24,12 +24,26 @@ const coinController = {
 
   async findAll(req, res) {
     try {
-      const { page = 1, limit = 10 } = req.query
-      const skip = (page - 1) * limit
+      const {
+        q = '',
+        order_by = 'name',
+        order = 'asc',
+        per_page = 10,
+        page = 1,
+      } = req.query
+
+      if (!['asc', 'desc'].includes(order.toLowerCase())) {
+        return res.status(400).json({ message: 'Order must be ASC or DESC' })
+      }
+
+      const skip = (page - 1) * per_page
 
       const coins = await coinService.findAll({
+        query: q,
+        orderBy: order_by,
+        order: order.toLowerCase(),
         skip: Number(skip),
-        take: Number(limit),
+        take: Number(per_page),
       })
 
       return res.status(200).json(coins)
@@ -44,6 +58,26 @@ const coinController = {
       const coin = await coinService.findById(req.params.id)
       if (!coin) {
         logger.warn(`Coin not found: ${req.params.id}`)
+        return res.status(404).json({ message: 'Coin not found' })
+      }
+      return res.status(200).json(coin)
+    } catch (error) {
+      logger.error(`Error fetching coin: ${error.message}`)
+      return res.status(500).json({ message: 'Internal server error' })
+    }
+  },
+
+  async findByNameOrSymbol(req, res) {
+    try {
+      const { query } = req.query
+      if (!query) {
+        return res.status(400).json({ message: 'Search query is required' })
+      }
+
+      const coin = await coinService.findByNameOrSymbol(query)
+
+      if (!coin) {
+        logger.warn(`Coin not found: ${query}`)
         return res.status(404).json({ message: 'Coin not found' })
       }
       return res.status(200).json(coin)

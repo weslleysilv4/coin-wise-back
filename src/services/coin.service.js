@@ -6,14 +6,35 @@ const coinService = {
     return prisma.coin.create({ data })
   },
 
-  async findAll({ skip, take }) {
+  async findAll({ query, orderBy, order, skip, take }) {
     const [coins, total] = await Promise.all([
       prisma.coin.findMany({
+        where: query
+          ? {
+              OR: [
+                { name: { contains: query, mode: 'insensitive' } },
+                { symbol: { contains: query, mode: 'insensitive' } },
+              ],
+            }
+          : undefined,
         skip,
         take,
-        orderBy: { market_cap_rank: 'asc' },
+        orderBy: {
+          [orderBy]: order,
+        },
       }),
-      prisma.coin.count(),
+      prisma.coin.count(
+        query
+          ? {
+              where: {
+                OR: [
+                  { name: { contains: query, mode: 'insensitive' } },
+                  { symbol: { contains: query, mode: 'insensitive' } },
+                ],
+              },
+            }
+          : undefined
+      ),
     ])
 
     return {
@@ -32,6 +53,26 @@ const coinService = {
     })
   },
 
+  async findByNameOrSymbol(query) {
+    return prisma.coin.findFirst({
+      where: {
+        OR: [
+          {
+            name: {
+              contains: query,
+              mode: 'insensitive',
+            },
+          },
+          {
+            symbol: {
+              contains: query,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      },
+    })
+  },
   async update(id, data) {
     return prisma.coin.update({
       where: { id },
