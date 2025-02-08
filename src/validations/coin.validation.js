@@ -1,6 +1,6 @@
-import * as z from 'zod'
+const z = require('zod')
 
-export const coinSchema = z.object({
+const coinSchema = z.object({
   symbol: z.string().min(1),
   name: z.string().min(1),
   image: z.string().url(),
@@ -27,3 +27,5 @@ export const coinSchema = z.object({
   roi: z.any().nullable(),
   last_updated: z.string().datetime(),
 })
+
+module.exports = coinSchema

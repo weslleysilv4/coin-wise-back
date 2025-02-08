@@ -1,6 +1,11 @@
-import * as z from 'zod'
+const z = require('zod')
 
-export const userValidation = z.object({
+const userValidation = z.object({
   email: z.string().email(),
-  password: z.string().min(6).max(255),
+  password: z
+    .string()
+    .min(6, { message: 'Password must be 5 or more characters long' })
+    .max(255),
 })
+
+module.exports = userValidation
