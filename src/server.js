@@ -7,15 +7,17 @@ const rateLimit = require('express-rate-limit')
 const morgan = require('morgan')
 const logger = require('./logger') // Arquivo de logs com Winston
 const routes = require('./routes') // Arquivo com as rotas da aplicação
+const cookieParser = require('cookie-parser')
 
 const app = express()
 
 // 🛡️ Segurança
 app.use(helmet())
-app.use(cors())
+app.use(cors({ origin: 'http://localhost:5173', credentials: true }))
 app.use(express.json())
 app.use(compression())
 app.use(morgan('dev'))
+app.use(cookieParser())
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
