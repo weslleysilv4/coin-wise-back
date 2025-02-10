@@ -5,8 +5,10 @@ const helmet = require('helmet')
 const compression = require('compression')
 const rateLimit = require('express-rate-limit')
 const morgan = require('morgan')
-const logger = require('./logger') // Arquivo de logs com Winston
-const routes = require('./routes') // Arquivo com as rotas da aplicação
+const logger = require('./logger')
+const routes = require('./routes')
+const prisma = require('./config/prisma')
+const redis = require('./config/redis')
 const cookieParser = require('cookie-parser')
 
 const app = express()
@@ -37,6 +39,16 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`)
+})
+
+process.on('SIGINT', async () => {
+  await Promise.all([prisma.$disconnect(), redis.quit()])
+  process.exit(0)
+})
+
+process.on('SIGTERM', async () => {
+  await Promise.all([prisma.$disconnect(), redis.quit()])
+  process.exit(0)
 })
 
 module.exports = app
