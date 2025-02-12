@@ -5,7 +5,8 @@
       "src": "src/server.js",
       "use": "@vercel/node",
       "config": {
-        "prebuild": "npx prisma generate"
+        "includeFiles": ["prisma/**/*"],
+        "buildCommand": "npm run vercel-build"
       }
     }
   ],

@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "vercel-build": "npm install && prisma generate && prisma db push && npm run build",
+    "build": "prisma generate",
+    "postinstall": "prisma generate",
     "start": "nodemon ./src/server.js",
     "seed": "node ./src/seed.js",
     "seedCoins": "node ./src/seedCoins.js"
