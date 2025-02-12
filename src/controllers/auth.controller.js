@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken')
-const logger = require('../logger')
+const logger = require('../utils/logger')
 const AuthService = require('../services/auth.service')
 
 const authController = {

@@ -5,7 +5,7 @@ const helmet = require('helmet')
 const compression = require('compression')
 const rateLimit = require('express-rate-limit')
 const morgan = require('morgan')
-const logger = require('./logger')
+const logger = require('./utils/logger')
 const routes = require('./routes')
 const prisma = require('./config/prisma')
 const redis = require('./config/redis')
@@ -38,8 +38,16 @@ app.use(limiter)
 
 app.use('/api', routes)
 
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.url}`, {
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+  })
+  next()
+})
+
 app.use((err, req, res, next) => {
-  logger.error(`Error: ${err.message} - Path: ${req.path}`)
+  logger.error(error.message, { stack: error.stack })
   res.status(500).json({ message: 'Internal server error' })
 })
 

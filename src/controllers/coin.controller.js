@@ -1,6 +1,6 @@
 const coinService = require('../services/coin.service')
 const coinSchema = require('../validations/coin.validation')
-const logger = require('../logger')
+const logger = require('../utils/logger')
 
 const coinController = {
   async create(req, res) {

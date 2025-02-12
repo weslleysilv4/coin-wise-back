@@ -1,5 +1,5 @@
 const redis = require('../config/redis')
-const logger = require('../logger')
+const logger = require('../utils/logger')
 
 const cacheMiddleware = (duration = 3600) => {
   return async (req, res, next) => {
