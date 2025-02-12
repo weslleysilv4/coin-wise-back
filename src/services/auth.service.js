@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs')
 const { PrismaClient } = require('@prisma/client')
 const userValidation = require('../validations/user.validation')
 const CustomError = require('../utils/CustomError')
-
+const redisClient = require('../config/redis')
 const userClient = new PrismaClient().user
 
 class AuthService {
@@ -56,11 +56,30 @@ class AuthService {
     return { accessToken, refreshToken, user }
   }
 
-  async logout(userId) {
-    await userClient.update({
+  async logout(userId, refreshToken) {
+    const user = await userClient.update({
       where: { id: userId },
       data: { refreshToken: null },
     })
+
+    if (!user) {
+      throw new CustomError(
+        'USER_NOT_FOUND',
+        "We couldn't find thsi user id!",
+        {
+          userId: "The userId provided doesn't exist",
+        },
+        404
+      )
+    }
+
+    await redisClient.setex(
+      `blacklist:${refreshToken}`,
+      7 * 24 * 60 * 60,
+      'revoked'
+    )
+
+    return user
   }
 
   async refreshToken(oldRefreshToken) {
@@ -82,7 +101,7 @@ class AuthService {
       expiresIn: '15m',
     })
 
-    return newAccessToken
+    return { newAccessToken, user }
   }
 }
 

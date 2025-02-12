@@ -19,7 +19,7 @@ const authController = {
       })
 
       return res.json({
-        sucess: true,
+        success: true,
         message: 'Sucessfully logged in!',
         accessToken,
         user,
@@ -42,11 +42,38 @@ const authController = {
         })
       }
       return res.status(401).json({
-        sucess: false,
+        success: false,
         code: error.code,
         message: error.message,
         errors: error.errors,
       })
+    }
+  },
+
+  async logout(req, res) {
+    try {
+      const user = req.body.user
+      const refreshToken = req.cookies.refreshToken
+      if (!refreshToken) {
+        return res.status(400).json({ message: 'No token provided' })
+      }
+
+      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET)
+      if (decoded.id !== user.id) {
+        return res.status(403).json({ message: 'Unauthorized logout attempt' })
+      }
+
+      await AuthService.logout(user.id, refreshToken)
+
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'Strict',
+      })
+      return res.status(200).json({ message: 'Logged out sucessfully' })
+    } catch (error) {
+      console.log(error.message)
+      return res.status(500).json({ message: error.message })
     }
   },
 
@@ -73,9 +100,10 @@ const authController = {
   async refreshToken(req, res) {
     try {
       const oldRefreshToken = req.cookies.refreshToken
-      const newAcessToken = await AuthService.refreshToken(oldRefreshToken)
-
-      return res.json({ sucess: true, accessToken: newAcessToken })
+      const { newAccessToken, user } = await AuthService.refreshToken(
+        oldRefreshToken
+      )
+      return res.json({ success: true, accessToken: newAccessToken, user })
     } catch (error) {
       return res.status(401).json({ sucess: false, message: error.message })
     }
