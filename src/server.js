@@ -15,7 +15,15 @@ const app = express()
 
 // 🛡️ Segurança
 app.use(helmet())
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }))
+app.use(
+  cors({
+    origin:
+      process.env.NODE_ENV === 'production'
+        ? 'https://coin-wise.vercel.app'
+        : 'http://localhost:5173',
+    credentials: true,
+  })
+)
 app.use(express.json())
 app.use(compression())
 app.use(morgan('dev'))
@@ -36,10 +44,13 @@ app.use((err, req, res, next) => {
 })
 
 // 🚀 Iniciando o servidor
-const PORT = process.env.PORT || 5000
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
-})
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(process.env.PORT || 8081, () => {
+    console.log(
+      `🚀 Server running on http://localhost:${process.env.PORT || 8081}`
+    )
+  })
+}
 
 process.on('SIGINT', async () => {
   await Promise.all([prisma.$disconnect(), redis.quit()])
