@@ -88,7 +88,9 @@ const authController = {
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
       if (err) {
         logger.error(`Invalid token: ${err.message}`)
-        return res.status(401).json({ message: 'Unauthorized!' })
+        return res
+          .status(401)
+          .json({ message: `Unauthorized! error: ${err.message}` })
       }
 
       logger.info(`User ${user.id} authenticated successfully`)
