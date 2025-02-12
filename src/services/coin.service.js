@@ -67,7 +67,7 @@ const coinService = {
   },
 
   async findByNameOrSymbol(query) {
-    return prisma.coin.findFirst({
+    return prisma.coin.findMany({
       where: {
         OR: [
           {

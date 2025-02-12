@@ -8,7 +8,9 @@ const coinController = {
       const validatedData = coinSchema.parse(req.body)
       const coin = await coinService.create(validatedData)
       logger.info(`Coin created: ${coin.name}`)
-      return res.status(201).json(coin)
+      return res
+        .status(201)
+        .json({ success: true, message: 'Coin created!', coin })
     } catch (error) {
       if (error?.name === 'ZodError') {
         logger.warn(`Validation error: ${error.issues[0].message}`)
@@ -86,13 +88,13 @@ const coinController = {
         return res.status(400).json({ message: 'Search query is required' })
       }
 
-      const coin = await coinService.findByNameOrSymbol(query)
+      const coins = await coinService.findByNameOrSymbol(query)
 
-      if (!coin) {
+      if (!coins) {
         logger.warn(`Coin not found: ${query}`)
         return res.status(404).json({ message: 'Coin not found' })
       }
-      return res.status(200).json(coin)
+      return res.status(200).json(coins)
     } catch (error) {
       logger.error(`Error fetching coin: ${error.message}`)
       return res.status(500).json({ message: 'Internal server error' })

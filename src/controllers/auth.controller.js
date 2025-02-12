@@ -72,14 +72,12 @@ const authController = {
       })
       return res.status(200).json({ message: 'Logged out sucessfully' })
     } catch (error) {
-      console.log(error.message)
       return res.status(500).json({ message: error.message })
     }
   },
 
   authenticateToken(req, res, next) {
     const token = req.header('Authorization')?.split(' ')[1]
-    console.log('token', token)
 
     if (!token) {
       logger.error('No token provided')
