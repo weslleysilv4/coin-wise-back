@@ -10,11 +10,23 @@ const coinController = {
       logger.info(`Coin created: ${coin.name}`)
       return res.status(201).json(coin)
     } catch (error) {
-      if (error.name === 'ZodError') {
+      if (error?.name === 'ZodError') {
         logger.warn(`Validation error: ${error.issues[0].message}`)
         return res.status(400).json({
-          message: 'Validation error',
-          errors: error.issues,
+          success: false,
+          code: 'VALIDATION_ERROR',
+          message:
+            'There are errors in your request. Please correct the highlighted fields.',
+          errors: Object.fromEntries(
+            Object.entries(error.format())
+              .filter(([key]) => key !== '_errors')
+              .map(([key, value]) => [
+                key,
+                Array.isArray(value?._errors) && value._errors.length > 0
+                  ? value._errors[0]
+                  : null,
+              ])
+          ),
         })
       }
       logger.error(`Error creating coin: ${error.message}`)

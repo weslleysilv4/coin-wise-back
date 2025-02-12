@@ -1,9 +1,16 @@
 const { PrismaClient } = require('@prisma/client')
+const calculatePriceChanges = require('../utils/calculatePriceChanges')
 const prisma = new PrismaClient()
 
 const coinService = {
   async create(data) {
-    return prisma.coin.create({ data })
+    const changes = calculatePriceChanges(data)
+    return prisma.coin.create({
+      data: {
+        ...data,
+        ...changes,
+      },
+    })
   },
 
   async findAll({ query, orderBy, order, skip, take }) {
@@ -37,8 +44,14 @@ const coinService = {
       ),
     ])
 
+    // Update calculated fields for each coin
+    const updatedCoins = coins.map((coin) => ({
+      ...coin,
+      ...calculatePriceChanges(coin),
+    }))
+
     return {
-      coins,
+      coins: updatedCoins,
       pagination: {
         total,
         pages: Math.ceil(total / take),
@@ -74,9 +87,13 @@ const coinService = {
     })
   },
   async update(id, data) {
+    const changes = calculatePriceChanges(data)
     return prisma.coin.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        ...changes,
+      },
     })
   },
 

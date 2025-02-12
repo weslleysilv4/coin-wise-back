@@ -79,6 +79,7 @@ const authController = {
 
   authenticateToken(req, res, next) {
     const token = req.header('Authorization')?.split(' ')[1]
+    console.log('token', token)
 
     if (!token) {
       logger.error('No token provided')

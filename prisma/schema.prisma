@@ -44,12 +44,9 @@ model Coin {
   max_supply                       Float?
   ath                              Float
   ath_change_percentage            Float
-  ath_date                         DateTime
   atl                              Float
   atl_change_percentage            Float
-  atl_date                         DateTime
   roi                              Json?
-  last_updated                     DateTime
   createdAt                        DateTime @default(now())
   updatedAt                        DateTime @updatedAt
 
