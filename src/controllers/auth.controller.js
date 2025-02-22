@@ -1,9 +1,19 @@
 const jwt = require('jsonwebtoken')
-const logger = require('../utils/logger')
 const AuthService = require('../services/auth.service')
+const ApiError = require('../utils/ApiError')
+const formatZodErrors = require('../utils/formatZodErrors')
+const logger = require('../utils/logger')
 
-const authController = {
-  async login(req, res) {
+class AuthController {
+  /**
+   * Realiza o login do usuário, definindo o refresh token em um cookie HTTP-only e retornando o access token.
+   *
+   * @param {import('express').Request} req - Objeto de requisição do Express.
+   * @param {import('express').Response} res - Objeto de resposta do Express.
+   * @param {import('express').NextFunction} next - Função para encaminhar erros ao middleware de tratamento.
+   * @returns {Promise<void>}
+   */
+  async login(req, res, next) {
     try {
       const { email, password } = req.body
       const { accessToken, refreshToken, user } = await AuthService.login(
@@ -11,56 +21,68 @@ const authController = {
         password
       )
 
-      res.cookie('refreshToken', refreshToken, {
+      // Define o refresh token em cookie seguro e HTTP-only
+      res.cookie('refresh_token', refreshToken, {
         httpOnly: true,
         secure: true,
         sameSite: 'Strict',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       })
 
-      return res.json({
+      res.json({
         success: true,
-        message: 'Sucessfully logged in!',
+        message: 'Successfully logged in!',
         accessToken,
         user,
       })
     } catch (error) {
       if (error?.name === 'ZodError') {
-        return res.status(401).json({
-          success: false,
-          code: 'VALIDATION_ERROR',
-          message:
+        return next(
+          new ApiError(
             'There are errors in your request. Please correct the highlighted fields.',
-          errors: {
-            email:
-              error.issues.find((item) => item.path[0] === 'email')?.message ||
-              null,
-            password:
-              error.issues.find((item) => item.path[0] === 'password')
-                ?.message || null,
-          },
-        })
+            400,
+            'VALIDATION_ERROR',
+            formatZodErrors(error)
+          )
+        )
       }
-      return res.status(401).json({
-        success: false,
-        code: error.code,
-        message: error.message,
-        errors: error.errors,
-      })
+      next(error)
     }
-  },
+  }
 
-  async logout(req, res) {
+  /**
+   * Efetua o logout do usuário, invalidando o refresh token.
+   *
+   * @param {import('express').Request} req - Objeto de requisição do Express.
+   * @param {import('express').Response} res - Objeto de resposta do Express.
+   * @param {import('express').NextFunction} next - Função para encaminhar erros ao middleware de tratamento.
+   * @returns {Promise<void>}
+   */
+  async logout(req, res, next) {
     try {
-      const user = req.body.user
+      const user = req.user || req.body.user
       const refreshToken = req.cookies.refreshToken
+
       if (!refreshToken) {
-        return res.status(400).json({ message: 'No token provided' })
+        return next(new ApiError('No token provided', 400, 'NO_TOKEN'))
       }
 
-      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET)
-      if (decoded.id !== user.id) {
-        return res.status(403).json({ message: 'Unauthorized logout attempt' })
+      let decoded
+      try {
+        decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET)
+      } catch (err) {
+        logger.error(err)
+        return next(new ApiError('Invalid refresh token', 401, 'INVALID_TOKEN'))
+      }
+
+      if (!user || decoded.id !== user.id) {
+        return next(
+          new ApiError(
+            'Unauthorized logout attempt',
+            403,
+            'UNAUTHORIZED_LOGOUT'
+          )
+        )
       }
 
       await AuthService.logout(user.id, refreshToken)
@@ -70,45 +92,32 @@ const authController = {
         secure: true,
         sameSite: 'Strict',
       })
-      return res.status(200).json({ message: 'Logged out sucessfully' })
+
+      return res.status(200).json({ message: 'Logged out successfully' })
     } catch (error) {
-      return res.status(500).json({ message: error.message })
+      return next(new ApiError(error.message, 500, 'INTERNAL_SERVER_ERROR'))
     }
-  },
+  }
 
-  authenticateToken(req, res, next) {
-    const token = req.header('Authorization')?.split(' ')[1]
-
-    if (!token) {
-      logger.error('No token provided')
-      return res.status(401).json({ error: 'Access Denied' })
-    }
-
-    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-      if (err) {
-        logger.error(`Invalid token: ${err.message}`)
-        return res
-          .status(401)
-          .json({ message: `Unauthorized! error: ${err.message}` })
-      }
-
-      logger.info(`User ${user.id} authenticated successfully`)
-      req.user = user
-      next()
-    })
-  },
-
-  async refreshToken(req, res) {
+  /**
+   * Atualiza o access token utilizando o refresh token presente nos cookies.
+   *
+   * @param {import('express').Request} req - Objeto de requisição do Express.
+   * @param {import('express').Response} res - Objeto de resposta do Express.
+   * @param {import('express').NextFunction} next - Função para encaminhar erros ao middleware.
+   * @returns {Promise<void>}
+   */
+  async refreshToken(req, res, next) {
     try {
       const oldRefreshToken = req.cookies.refreshToken
       const { newAccessToken, user } = await AuthService.refreshToken(
         oldRefreshToken
       )
-      return res.json({ success: true, accessToken: newAccessToken, user })
+      res.json({ success: true, accessToken: newAccessToken, user })
     } catch (error) {
-      return res.status(401).json({ sucess: false, message: error.message })
+      next(error)
     }
-  },
+  }
 }
 
-module.exports = authController
+module.exports = new AuthController()
