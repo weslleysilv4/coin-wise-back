@@ -1,42 +1,46 @@
 const coinService = require('../services/coin.service')
 const coinSchema = require('../validations/coin.validation')
 const logger = require('../utils/logger')
+const ApiError = require('../utils/ApiError')
+const formatZodErrors = require('../utils/formatZodErrors')
 
-const coinController = {
-  async create(req, res) {
+class CoinController {
+  /**
+   * Cria uma nova moeda.
+   *
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async create(req, res, next) {
     try {
       const validatedData = coinSchema.parse(req.body)
       const coin = await coinService.create(validatedData)
       logger.info(`Coin created: ${coin.name}`)
-      return res
-        .status(201)
-        .json({ success: true, message: 'Coin created!', coin })
+      res.status(201).json({ success: true, message: 'Coin created!', coin })
     } catch (error) {
       if (error?.name === 'ZodError') {
-        logger.warn(`Validation error: ${error.issues[0].message}`)
-        return res.status(400).json({
-          success: false,
-          code: 'VALIDATION_ERROR',
-          message:
-            'There are errors in your request. Please correct the highlighted fields.',
-          errors: Object.fromEntries(
-            Object.entries(error.format())
-              .filter(([key]) => key !== '_errors')
-              .map(([key, value]) => [
-                key,
-                Array.isArray(value?._errors) && value._errors.length > 0
-                  ? value._errors[0]
-                  : null,
-              ])
-          ),
-        })
+        return next(
+          new ApiError(
+            'Validation error',
+            400,
+            'VALIDATION_ERROR',
+            formatZodErrors(error)
+          )
+        )
       }
-      logger.error(`Error creating coin: ${error.message}`)
-      return res.status(500).json({ message: 'Internal server error' })
+      next(error)
     }
-  },
+  }
 
-  async findAll(req, res) {
+  /**
+   * Retorna uma lista paginada de moedas.
+   *
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async findAll(req, res, next) {
     try {
       const {
         q = '',
@@ -47,12 +51,13 @@ const coinController = {
       } = req.query
 
       if (!['asc', 'desc'].includes(order.toLowerCase())) {
-        return res.status(400).json({ message: 'Order must be ASC or DESC' })
+        return next(
+          new ApiError('Order must be ASC or DESC', 400, 'INVALID_ORDER')
+        )
       }
 
       const skip = (page - 1) * per_page
-
-      const coins = await coinService.findAll({
+      const coinsData = await coinService.findAll({
         query: q,
         orderBy: order_by,
         order: order.toLowerCase(),
@@ -60,76 +65,75 @@ const coinController = {
         take: Number(per_page),
       })
 
-      return res.status(200).json(coins)
+      res.status(200).json(coinsData)
     } catch (error) {
-      logger.error(`Error fetching coins: ${error.message}`)
-      return res.status(500).json({ message: 'Internal server error' })
+      next(error)
     }
-  },
+  }
 
-  async findById(req, res) {
+  /**
+   * Busca uma moeda pelo seu ID.
+   *
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async findById(req, res, next) {
     try {
       const coin = await coinService.findById(req.params.id)
       if (!coin) {
-        logger.warn(`Coin not found: ${req.params.id}`)
-        return res.status(404).json({ message: 'Coin not found' })
+        return next(new ApiError('Coin not found', 404, 'COIN_NOT_FOUND'))
       }
-      return res.status(200).json(coin)
+      res.status(200).json(coin)
     } catch (error) {
-      logger.error(`Error fetching coin: ${error.message}`)
-      return res.status(500).json({ message: 'Internal server error' })
+      next(error)
     }
-  },
+  }
 
-  async findByNameOrSymbol(req, res) {
-    try {
-      const { query } = req.query
-      if (!query) {
-        return res.status(400).json({ message: 'Search query is required' })
-      }
-
-      const coins = await coinService.findByNameOrSymbol(query)
-
-      if (!coins) {
-        logger.warn(`Coin not found: ${query}`)
-        return res.status(404).json({ message: 'Coin not found' })
-      }
-      return res.status(200).json(coins)
-    } catch (error) {
-      logger.error(`Error fetching coin: ${error.message}`)
-      return res.status(500).json({ message: 'Internal server error' })
-    }
-  },
-
-  async update(req, res) {
+  /**
+   * Atualiza uma moeda com os dados informados.
+   *
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async update(req, res, next) {
     try {
       const validatedData = coinSchema.partial().parse(req.body)
       const coin = await coinService.update(req.params.id, validatedData)
       logger.info(`Coin updated: ${coin.name}`)
-      return res.status(200).json(coin)
+      res.status(200).json(coin)
     } catch (error) {
       if (error.name === 'ZodError') {
-        logger.warn(`Validation error: ${error.issues[0].message}`)
-        return res.status(400).json({
-          message: 'Validation error',
-          errors: error.issues,
-        })
+        return next(
+          new ApiError(
+            'Validation error',
+            400,
+            'VALIDATION_ERROR',
+            formatZodErrors(error)
+          )
+        )
       }
-      logger.error(`Error updating coin: ${error.message}`)
-      return res.status(500).json({ message: 'Internal server error' })
+      next(error)
     }
-  },
+  }
 
-  async delete(req, res) {
+  /**
+   * Exclui uma moeda pelo seu ID.
+   *
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {import('express').NextFunction} next
+   */
+  async delete(req, res, next) {
     try {
       await coinService.delete(req.params.id)
       logger.info(`Coin deleted: ${req.params.id}`)
-      return res.status(204).send()
+      res.status(204).send()
     } catch (error) {
-      logger.error(`Error deleting coin: ${error.message}`)
-      return res.status(500).json({ message: 'Internal server error' })
+      next(error)
     }
-  },
+  }
 }
 
-module.exports = coinController
+module.exports = new CoinController()
